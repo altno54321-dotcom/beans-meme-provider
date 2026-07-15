@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beans Memes - Custom Server Packages</title>
+    
+    <!-- Load Firebase SDKs via CDN (Compat version avoids local CORS restrictions) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* Discord-inspired Dark Theme Colors */
+        :root {
+            --bg-color: #1e1f22;
+            --card-color: #2b2d31;
+            --text-color: #f2f3f5;
+            --text-muted: #b5bac1;
+            --primary-color: #5865f2;
+            --primary-hover: #4752c4;
+            --input-bg: #1e1f22;
+            --input-border: #3f4147;
+            --success-color: #23a55a;
+            --danger-color: #da373c;
+            --danger-hover: #a92b2f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            margin-top: 20px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: var(--text-color);
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Container & Views */
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background-color: var(--card-color);
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: max-width 0.3s;
+        }
+
+        /* Expanded container for wide Admin Panel */
+        .container.wide {
+            max-width: 850px;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        /* Package Details (Home View) */
+        .package-title {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .price-badge {
+            display: inline-block;
+            background-color: var(--primary-color);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .center-wrapper {
+            text-align: center;
+        }
+
+        .bullet-points {
+            list-style: none;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .bullet-points li {
+            margin-bottom: 12px;
+            font-size: 1rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+        }
+
+        .bullet-points li::before {
+            content: "✓";
+            color: var(--success-color);
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        /* Form Inputs & Checkout */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            text-transform: uppercase;
+        }
+
+        input[type="text"], input[type="number"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* Summary Boxes */
+        .summary-box {
+            background-color: var(--bg-color);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px dashed var(--input-border);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .summary-row.total {
+            border-top: 1px solid var(--input-border);
+            padding-top: 10px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+
+        /* Buttons */
+        .btn {
+            display: block;
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--input-border);
+            color: var(--text-muted);
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--input-border);
+            color: var(--text-color);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        /* Success screen animations */
+        .success-icon {
+            font-size: 4rem;
+            color: var(--success-color);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .success-text {
+            text-align: center;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Admin Fixed Button in Corner */
+        .admin-corner-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--card-color);
+            color: var(--text-muted);
+            border: 1px solid var(--input-border);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .admin-corner-btn:hover {
+            color: var(--text-color);
+            border-color: var(--primary-color);
+        }
+
+        /* Passcode Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-card {
+            background-color: var(--card-color);
+            width: 90%;
+            max-width: 400px;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        /* Admin Orders Table Styles */
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--input-border);
+            padding-bottom: 15px;
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--input-border);
+            font-size: 0.9rem;
+        }
+
+        th {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background-color: rgba(255,255,255,0.02);
+        }
+
+        .cancel-btn {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+
+        .cancel-btn:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .no-orders-msg {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 40px 0;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Floating Admin Button -->
+    <button class="admin-corner-btn" onclick="openAdminModal()">Admin Panel</button>
+
+    <header>
+        <h1>Beans Memes</h1>
+        <p>Premium custom server meme generation</p>
+    </header>
+
+    <div id="main-container" class="container">
+
+        <!-- STEP 1: Home View (Package Select) -->
+        <div id="view-home" class="view active">
+            <h2 class="package-title">Beans Memes Weekly</h2>
+            
+            <div class="center-wrapper">
+                <div class="price-badge">450 SC / week</div>
+            </div>
+
+            <ul class="bullet-points">
+                <li>4 custom memes a week</li>
+                <li>Tailored directly to your server events</li>
+                <li>Scanned directly from your community chat lore</li>
+                <li>High-quality, viral-ready formats</li>
+            </ul>
+
+            <button class="btn" onclick="selectPackage()">Select Package</button>
+        </div>
+
+        <!-- STEP 2: Info View (Checkout Form) -->
+        <div id="view-info" class="view">
+            <h2 style="margin-bottom: 20px; text-align: center;">Delivery Information</h2>
+            
+            <div class="form-group">
+                <label for="owner-name">Server Owner Discord Name</label>
+                <input type="text" id="owner-name" placeholder="e.g. Beans#1234">
+            </div>
+
+            <div class="form-group">
+                <label for="server-name">Discord Server Name</label>
+                <input type="text" id="server-name" placeholder="e.g. The Bean Cans">
+            </div>
+
+            <button class="btn" onclick="goToPayment()">Proceed to Payment</button>
+            <button class="btn btn-secondary" onclick="showView('view-home')">Back</button>
+        </div>
+
+        <!-- STEP 3: Payment View -->
+        <div id="view-payment" class="view">
+            <h2 style="margin-bottom: 20px; text-align: center;">Customize Price & Pay</h2>
+
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span style="color: var(--text-muted)">Server Owner:</span>
+                    <span id="summary-owner">--</span>
+                </div>
+                <div class="summary-row">
+                    <span style="color: var(--text-muted)">Target Server:</span>
+                    <span id="summary-server">--</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="custom-price">Reasonable Price (SC)</label>
+                <input type="number" id="custom-price" value="450" oninput="calculateTotal()">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Set the price you feel is fair for this package.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="tip-amount">Tip Amount (SC)</label>
+                <input type="number" id="tip-amount" value="0" placeholder="e.g. 50" oninput="calculateTotal()">
+            </div>
+
+            <div class="summary-box" style="border-style: solid;">
+                <div class="summary-row">
+                    <span>Base Price:</span>
+                    <span id="invoice-base">450 SC</span>
+                </div>
+                <div class="summary-row">
+                    <span>Tip:</span>
+                    <span id="invoice-tip">0 SC</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total Amount:</span>
+                    <span id="invoice-total">450 SC</span>
+                </div>
+            </div>
+
+            <button class="btn" onclick="completeOrder()">Complete Order</button>
+            <button class="btn btn-secondary" onclick="showView('view-info')">Back</button>
+        </div>
+
+        <!-- STEP 4: Success View -->
+        <div id="view-success" class="view">
+            <div class="success-icon">✓</div>
+            <h2 style="text-align: center; margin-bottom: 15px;">Order Placed!</h2>
+            <div class="success-text">
+                <p>Thank you for choosing Beans Memes.</p>
+                <p style="margin-top: 10px;">We have received your request for **<span id="success-server">--</span>**.</p>
+                <p style="margin-top: 15px; font-size: 0.9rem; color: var(--primary-color);">Our team will contact the Server Owner (**<span id="success-owner">--</span>**) on Discord shortly to configure the delivery details.</p>
+            </div>
+            <button class="btn btn-secondary" style="margin-top: 30px;" onclick="resetForm()">Back to Home</button>
+        </div>
+
+        <!-- STEP 5: Admin Panel View -->
+        <div id="view-admin" class="view">
+            <div class="admin-header">
+                <h2>Admin Dashboard</h2>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Real-time Cloud Database Connection</span>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date/Time</th>
+                            <th>Server Name</th>
+                            <th>Owner Name</th>
+                            <th>Base Price</th>
+                            <th>Tip</th>
+                            <th>Total</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-table-body">
+                        <!-- Loaded via Firebase -->
+                    </tbody>
+                </table>
+            </div>
+
+            <button class="btn btn-secondary" style="margin-top: 10px;" onclick="closeAdminPanel()">Close Admin Panel</button>
+        </div>
+
+    </div>
+
+    <!-- Passcode Verification Modal -->
+    <div id="admin-passcode-modal" class="modal-overlay">
+        <div class="modal-card">
+            <h3 style="margin-bottom: 15px; text-align: center;">Enter Admin Passcode</h3>
+            <div class="form-group">
+                <input type="password" id="admin-pw-field" placeholder="••••••••" onkeydown="handlePasswordKey(event)">
+            </div>
+            <button class="btn" onclick="verifyAdminPasscode()">Log In</button>
+            <button class="btn btn-secondary" onclick="closeAdminModal()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // Loaded configurations directly from your web portal setup
+        const firebaseConfig = {
+            apiKey: "AIzaSyBuoAjE2Fuy5COJ3Phlx_YUelDdS9TlpcQ",
+            authDomain: "beans-meme-store.firebaseapp.com",
+            projectId: "beans-meme-store",
+            storageBucket: "beans-meme-store.firebasestorage.app",
+            messagingSenderId: "597475502413",
+            appId: "1:597475502413:web:24e214604433692f426f04"
+        };
+
+        // Initialize Firebase SDK
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Checkout State Variables
+        let serverOwner = "";
+        let serverName = "";
+
+        // Switch visible view panels
+        function showView(viewId) {
+            const container = document.getElementById('main-container');
+            
+            if (viewId === 'view-admin') {
+                container.classList.add('wide');
+            } else {
+                container.classList.remove('wide');
+            }
+
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.remove('active');
+            });
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        function selectPackage() {
+            showView('view-info');
+        }
+
+        function goToPayment() {
+            const ownerInput = document.getElementById('owner-name').value.trim();
+            const serverInput = document.getElementById('server-name').value.trim();
+
+            if (!ownerInput || !serverInput) {
+                alert("❌ Please fill in both fields before continuing.");
+                return;
+            }
+
+            serverOwner = ownerInput;
+            serverName = serverInput;
+
+            document.getElementById('summary-owner').textContent = serverOwner;
+            document.getElementById('summary-server').textContent = serverName;
+
+            calculateTotal();
+            showView('view-payment');
+        }
+
+        function calculateTotal() {
+            const customPrice = parseFloat(document.getElementById('custom-price').value) || 0;
+            const tipAmount = parseFloat(document.getElementById('tip-amount').value) || 0;
+            const total = customPrice + tipAmount;
+
+            document.getElementById('invoice-base').textContent = customPrice + " SC";
+            document.getElementById('invoice-tip').textContent = tipAmount + " SC";
+            document.getElementById('invoice-total').textContent = total + " SC";
+        }
+
+        // Finish checkout, save to Cloud Database, and show success screen
+        function completeOrder() {
+            const customPrice = parseFloat(document.getElementById('custom-price').value) || 0;
+            const tipAmount = parseFloat(document.getElementById('tip-amount').value) || 0;
+            const total = customPrice + tipAmount;
+
+            // Save order to Google Cloud Firestore database
+            saveOrderToCloud(serverOwner, serverName, customPrice, tipAmount, total);
+
+            document.getElementById('success-owner').textContent = serverOwner;
+            document.getElementById('success-server').textContent = serverName;
+            showView('view-success');
+        }
+
+        function resetForm() {
+            document.getElementById('owner-name').value = "";
+            document.getElementById('server-name').value = "";
+            document.getElementById('custom-price').value = "450";
+            document.getElementById('tip-amount').value = "0";
+            showView('view-home');
+        }
+
+        // --- CLOUD FIREBASE LOGIC ---
+        
+        // Save order directly into Cloud Firestore
+        function saveOrderToCloud(owner, server, base, tip, total) {
+            db.collection("orders").add({
+                owner: owner,
+                server: server,
+                base: base,
+                tip: tip,
+                total: total,
+                timestamp: Date.now(), // Sorted reference
+                date: new Date().toLocaleString()
+            })
+            .then((docRef) => {
+                console.log("Order saved to Cloud with ID: ", docRef.id);
+            })
+            .catch((error) => {
+                console.error("Database Error: ", error);
+                alert("⚠️ Error saving order to the database. Make sure your Firestore rules are set to Test Mode.");
+            });
+        }
+
+        // Read and list orders live from Firestore Database (sorted by newest)
+        function loadOrdersTable() {
+            const tableBody = document.getElementById('orders-table-body');
+            tableBody.innerHTML = "<tr><td colspan='7' class='no-orders-msg'>🔄 Fetching live orders from database...</td></tr>";
+
+            db.collection("orders").orderBy("timestamp", "desc").get()
+            .then((querySnapshot) => {
+                tableBody.innerHTML = "";
+
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="no-orders-msg">No orders have been placed yet.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const order = doc.data();
+                    const orderId = doc.id; // Cloud String ID for deleting
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${order.date}</td>
+                        <td style="font-weight: bold;">${order.server}</td>
+                        <td>${order.owner}</td>
+                        <td>${order.base} SC</td>
+                        <td>${order.tip} SC</td>
+                        <td style="font-weight: bold; color: var(--success-color);">${order.total} SC</td>
+                        <td>
+                            <button class="cancel-btn" onclick="deleteOrder('${orderId}')">Cancel</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            })
+            .catch((error) => {
+                console.error("Error reading database: ", error);
+                tableBody.innerHTML = `<tr><td colspan='7' class='no-orders-msg' style='color: var(--danger-color);'>⚠️ Error loading database: ${error.message}</td></tr>`;
+            });
+        }
+
+        // Cancel (delete) order from Cloud Firestore
+        function deleteOrder(orderId) {
+            if (confirm("⚠️ Are you sure you want to cancel and delete this order from the database?")) {
+                db.collection("orders").doc(orderId).delete()
+                .then(() => {
+                    loadOrdersTable(); // Refresh table view instantly
+                })
+                .catch((error) => {
+                    alert("❌ Error deleting order: " + error.message);
+                });
+            }
+        }
+
+        // --- ADMIN ACCESS MODAL LOGIC ---
+
+        function openAdminModal() {
+            document.getElementById('admin-pw-field').value = ""; // Clear password field
+            document.getElementById('admin-passcode-modal').style.display = "flex";
+            document.getElementById('admin-pw-field').focus();
+        }
+
+        function closeAdminModal() {
+            document.getElementById('admin-passcode-modal').style.display = "none";
+        }
+
+        function handlePasswordKey(event) {
+            if (event.key === "Enter") {
+                verifyAdminPasscode();
+            }
+        }
+
+        // Obfuscated comparison of "beanssupremecy5421" using shifted ASCII character offsets
+        function verifyAdminPasscode() {
+            const enteredPw = document.getElementById('admin-pw-field').value;
+            
+            // Scrambled representation of "beanssupremecy5421"
+            const scrambledSecret = [111, 119, 120, 138, 148, 153, 160, 160, 167, 159, 172, 169, 172, 199, 136, 140, 143, 147];
+            
+            // Length check
+            if (enteredPw.length !== scrambledSecret.length) {
+                alert("❌ Access Denied: Incorrect passcode!");
+                return;
+            }
+            
+            // Validate each character against the offset map
+            for (let i = 0; i < enteredPw.length; i++) {
+                const computedVal = enteredPw.charCodeAt(i) + (i * 5) + 13;
+                if (computedVal !== scrambledSecret[i]) {
+                    alert("❌ Access Denied: Incorrect passcode!");
+                    return;
+                }
+            }
+            
+            // If validation passes
+            closeAdminModal();
+            loadOrdersTable();
+            showView('view-admin');
+        }
+
+        function closeAdminPanel() {
+            showView('view-home');
+        }
+    </script>
+</body>
+</html>
